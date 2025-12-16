@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diamond Game Hub</title>
+
+<style>
+* { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #0f0f1a, #0a0a12);
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+header {
+  padding: 24px;
+  text-align: center;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+header h1 { margin: 0 0 8px; font-size: 2.2rem; }
+header p { margin: 0; color: #b8b8ff; }
+header h4 a { color: #b8b8ff; margin: 0 8px;  }
+
+.controls {
+  max-width: 1100px;
+  margin: 24px auto 0;
+  padding: 0 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.search-box { flex: 1; min-width: 220px; }
+
+.search-box input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #151528;
+  color: #fff;
+}
+
+.stats {
+  margin-left: auto;
+  font-size: 0.9rem;
+  color: #cfcfff;
+}
+
+main {
+  max-width: 1100px;
+  margin: 32px auto;
+  padding: 0 16px 40px;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.game-card {
+  background: linear-gradient(180deg, #1a1a2f, #121224);
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.game-card:hover {
+  transform: translateY(-6px) scale(1.02);
+}
+
+.game-thumb {
+  width: 100%;
+  height: 110px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 10px;
+}
+
+.game-title { font-weight: bold; }
+
+.no-results {
+  text-align: center;
+  color: #b8b8ff;
+  margin-top: 40px;
+  display: none;
+}
+
+footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 0.75rem;
+  color: #8c8cff;
+}
+
+#viewer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 9999;
+  flex-direction: column;
+}
+
+#viewer-toolbar {
+  height: 48px;
+  background: #111;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+#viewerTitle { color: #cfcfff; font-size: 0.9rem; }
+
+#viewer-toolbar button {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+}
+
+#newTabBtn { background: #2a2aff; }
+#closeBtn { background: #ff3a3a; }
+
+#gameFrame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #000;
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Diamond Game Hub</h1>
+  <p>All your favorite games in one powerful hub!</p>
+  <h4>
+    <a href="https://discord.gg/jbxrZyjpSM">Discord Server</a> | 
+    <a href="https://bloxcraft-ubg.pages.dev">Bloxcraft UBG</a> | 
+    <a href="https://dominum-ubg.pages.dev">Dominum UBG</a>
+  </h4>
+</header>
+
+<div class="controls">
+  <div class="search-box">
+    <input id="searchInput" placeholder="Search games..." />
+  </div>
+
+  <div class="stats">
+    Games Shown: <span id="totalGames">0</span>
+  </div>
+</div>
+
+<main>
+  <div id="gamesGrid" class="games-grid"></div>
+  <div id="noResults" class="no-results">No games found.</div>
+</main>
+
+<footer>
+  <h3>Diamond Game Hub</h3>
+  <p>Games by: Bloxcraft UBG & Dominum UBG</p>
+</footer>
+
+<div id="viewer">
+  <div id="viewer-toolbar">
+    <span id="viewerTitle">Game Viewer</span>
+    <div>
+      <button id="newTabBtn">Play in New Tab</button>
+      <button id="closeBtn">Close</button>
+    </div>
+  </div>
+  <iframe id="gameFrame"></iframe>
+</div>
+
+<script>
+const JSON_URL = "https://cdn.jsdelivr.net/gh/dominum-ubg/assets/games.json";
+const HTML_URL = "https://cdn.jsdelivr.net/gh/dominum-ubg/games@main/";
+const COVER_URL = "https://cdn.jsdelivr.net/gh/dominum-ubg/game-covers@main/";
+
+const grid = document.getElementById("gamesGrid");
+const search = document.getElementById("searchInput");
+const count = document.getElementById("totalGames");
+const noResults = document.getElementById("noResults");
+
+const viewer = document.getElementById("viewer");
+const frame = document.getElementById("gameFrame");
+const viewerTitle = document.getElementById("viewerTitle");
+
+let currentHTML = "";
+let allGames = [];
+let displayedGames = [];
+let batchSize = 20;
+let batchIndex = 0;
+
+/* Embedded JSON fallback (full URLs directly) */
+const embeddedGames = [
+  { 
+    name: "Dominum Browser", 
+    cover: "https://cdn.jsdelivr.net/gh/tharun9772/tharun9772.github.io@main/39e50783014f84b22616ad0a139b1e54.png", 
+    url: "https://cdn.jsdelivr.net/gh/tharun9772/bloxcraft-unblocked-hub@main/src/apps/dominum-browser.html" 
+  },
+  { 
+    name: "Dominum UBG (NOT MADE BY DOMINUM BROWSER)", 
+    cover: "https://cdn.jsdelivr.net/gh/dominum-ubg/dominum-ubg.github.io@main/dominum-ubg.png", 
+    url: "https://cdn.jsdelivr.net/gh/dominum-ubg/dominum-ubg.github.io@main/singlefile.html" 
+  },
+  { 
+    name: "Flamed Lite", 
+    cover: "https://cdn.jsdelivr.net/gh/Flamed-Games/Flamed-Lite@main/Blue-Fire-PNG-300x225.png", 
+    url: "https://cdn.jsdelivr.net/gh/Flamed-Games/Flamed-Lite@main/index.html" 
+  },
+  { 
+    name: "Bloxcraft Unblocked Hub", 
+    cover: "https://cdn.jsdelivr.net/gh/tharun9772/tharun9772.github.io@main/bloxcraft_transparent.png", 
+    url: "https://cdn.jsdelivr.net/gh/dominum-ubg/games@main/bloxcraft-ubg-hub-hub-hub-hub-hub-67.html" 
+  }
+];
+
+/* Load external JSON and merge with embedded JSON, remove duplicates except keep first occurrence */
+async function loadGames() {
+  let externalGames = [];
+  try {
+    const res = await fetch(JSON_URL);
+    const data = await res.json();
+    externalGames = data.filter(g => !g.name.includes("COMMENTS")).map(g => ({
+      name: g.name,
+      url: g.url.replace("{HTML_URL}", HTML_URL),
+      thumb: g.cover.replace("{COVER_URL}", COVER_URL)
+    }));
+  } catch (e) {
+    console.warn("Failed to load external JSON, using embedded only", e);
+  }
+
+  // Merge: embedded games first, then external games
+  const merged = [...embeddedGames, ...externalGames];
+  const seen = new Set();
+  allGames = [];
+  merged.forEach(g => {
+    if (!seen.has(g.name)) {
+      allGames.push(g); // keep the first occurrence
+      seen.add(g.name);
+    }
+  });
+
+  // Move "Bloxcraft Unblocked Hub" to first if exists
+  const idx = allGames.findIndex(g => g.name === "Bloxcraft Unblocked Hub");
+  if (idx > 0) {
+    const [bloxcraftGame] = allGames.splice(idx, 1);
+    allGames.unshift(bloxcraftGame);
+  }
+
+  displayedGames = [];
+  batchIndex = 0;
+
+  // Update total counter with all unique games
+  count.textContent = allGames.length;
+
+  loadMoreGames();
+}
+
+/* Lazy render batch */
+function loadMoreGames() {
+  const filtered = search.value ? allGames.filter(g => g.name.toLowerCase().includes(search.value.toLowerCase())) : allGames;
+  const nextBatch = filtered.slice(batchIndex, batchIndex + batchSize);
+  displayedGames = displayedGames.concat(nextBatch);
+  render(displayedGames);
+  batchIndex += batchSize;
+}
+
+/* Render games */
+function render(list) {
+  grid.innerHTML = "";
+  count.textContent = allGames.length; // always show total unique games
+
+  if (!list.length) {
+    noResults.style.display = "block";
+    return;
+  }
+  noResults.style.display = "none";
+
+  list.forEach(g => {
+    const card = document.createElement("div");
+    card.className = "game-card";
+    card.innerHTML = `
+      <div class="game-thumb" style="background-image:url('${g.thumb || g.cover}')"></div>
+      <div class="game-title">${g.name}</div>
+    `;
+    card.onclick = () => openGame(g.url, g.name);
+    grid.appendChild(card);
+  });
+}
+
+/* Open game in about:blank */
+async function openGame(url, title) {
+  viewerTitle.textContent = title;
+  viewer.style.display = "flex";
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    currentHTML = await res.text();
+    const d = frame.contentWindow.document;
+    d.open();
+    d.write(currentHTML);
+    d.close();
+    frame.dataset.mode = "html";
+  } catch {
+    frame.src = url;
+    frame.dataset.mode = "iframe";
+    currentHTML = "";
+  }
+}
+
+/* Viewer controls */
+document.getElementById("closeBtn").onclick = () => {
+  viewer.style.display = "none";
+  frame.src = "about:blank";
+};
+document.getElementById("newTabBtn").onclick = () => {
+  if (frame.dataset.mode === "html" && currentHTML) {
+    const w = window.open("about:blank");
+    w.document.open();
+    w.document.write(currentHTML);
+    w.document.close();
+  } else {
+    window.open(frame.src, "_blank");
+  }
+};
+
+/* Search */
+function handleSearch() {
+  displayedGames = [];
+  batchIndex = 0;
+  loadMoreGames();
+}
+
+search.addEventListener("input", handleSearch);
+
+/* Infinite scroll */
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+    loadMoreGames();
+  }
+});
+
+loadGames();
+</script>
+</body>
+</html>
