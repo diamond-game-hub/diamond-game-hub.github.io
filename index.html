@@ -208,6 +208,12 @@ let batchSize = 20;
 let batchIndex = 0;
 
 const embeddedGames = [
+  
+  { 
+    name: "Bloxcraft Unblocked Hub", 
+    cover: "https://cdn.jsdelivr.net/gh/tharun9772/tharun9772.github.io@main/bloxcraft_transparent.png", 
+    url: "https://cdn.jsdelivr.net/gh/dominum-ubg/games@main/bloxcraft-ubg-hub-hub-hub-hub-hub-67.html" 
+  },
     { 
     name: "(!) Chat", 
     cover: "https://cdn.jsdelivr.net/gh/diamond-game-hub/diamond-game-hub.github.io@main/9891-chat-icon.png", 
@@ -227,11 +233,6 @@ const embeddedGames = [
     name: "Flamed Lite", 
     cover: "https://cdn.jsdelivr.net/gh/Flamed-Games/Flamed-Lite@main/Blue-Fire-PNG-300x225.png", 
     url: "https://cdn.jsdelivr.net/gh/Flamed-Games/Flamed-Lite@main/index.html" 
-  },
-  { 
-    name: " (!) Bloxcraft Unblocked Hub", 
-    cover: "https://cdn.jsdelivr.net/gh/tharun9772/tharun9772.github.io@main/bloxcraft_transparent.png", 
-    url: "https://cdn.jsdelivr.net/gh/dominum-ubg/games@main/bloxcraft-ubg-hub-hub-hub-hub-hub-67.html" 
   }
 ];
 
@@ -249,19 +250,17 @@ async function loadGames() {
     console.warn("Failed to load external JSON, using embedded only", e);
   }
 
-  // Merge: embedded games first, then external games
   const merged = [...embeddedGames, ...externalGames];
   const seen = new Set();
   allGames = [];
   merged.forEach(g => {
     if (!seen.has(g.name)) {
-      allGames.push(g); // keep the first occurrence
+      allGames.push(g); 
       seen.add(g.name);
     }
   });
 
-  // Move "Bloxcraft Unblocked Hub" to first if exists
-  const idx = allGames.findIndex(g => g.name === "Bloxcraft Unblocked Hub");
+  const idx = allGames.findIndex(g => g.name === "(!) Chat");
   if (idx > 0) {
     const [bloxcraftGame] = allGames.splice(idx, 1);
     allGames.unshift(bloxcraftGame);
@@ -270,13 +269,11 @@ async function loadGames() {
   displayedGames = [];
   batchIndex = 0;
 
-  // Update total counter with all unique games
   count.textContent = allGames.length;
 
   loadMoreGames();
 }
 
-/* Lazy render batch */
 function loadMoreGames() {
   const filtered = search.value ? allGames.filter(g => g.name.toLowerCase().includes(search.value.toLowerCase())) : allGames;
   const nextBatch = filtered.slice(batchIndex, batchIndex + batchSize);
@@ -285,10 +282,9 @@ function loadMoreGames() {
   batchIndex += batchSize;
 }
 
-/* Render games */
 function render(list) {
   grid.innerHTML = "";
-  count.textContent = allGames.length; // always show total unique games
+  count.textContent = allGames.length; 
 
   if (!list.length) {
     noResults.style.display = "block";
@@ -308,7 +304,6 @@ function render(list) {
   });
 }
 
-/* Open game in about:blank */
 async function openGame(url, title) {
   viewerTitle.textContent = title;
   viewer.style.display = "flex";
@@ -329,7 +324,6 @@ async function openGame(url, title) {
   }
 }
 
-/* Viewer controls */
 document.getElementById("closeBtn").onclick = () => {
   viewer.style.display = "none";
   frame.src = "about:blank";
@@ -345,7 +339,6 @@ document.getElementById("newTabBtn").onclick = () => {
   }
 };
 
-/* Search */
 function handleSearch() {
   displayedGames = [];
   batchIndex = 0;
@@ -354,7 +347,6 @@ function handleSearch() {
 
 search.addEventListener("input", handleSearch);
 
-/* Infinite scroll */
 window.addEventListener("scroll", () => {
   if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
     loadMoreGames();
